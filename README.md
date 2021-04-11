@@ -37,16 +37,25 @@ Where the minimal arguments are:
                     
 -t [MAIL_ADDRESSESS]  # The recipient email address(es)
 
+```
+
+It's possible to store the default values for SMTP, MESSAGE and LOGGING in a config.ini file to avoid passing them in command line everytime.
+Check the internal docs on [configuration_example.ini](templates/configuration_example.ini) to know how to configure it
+```
+python simpleMail.py -f "from@example.com" -t "to@exmple.com" -c "templates/configuration_example.ini"
+```
+
+
+Optional arguments:
+```
+-c [CONFIG_FILE]      # The configuration file in INI format
+
 -m [MESSAGE ...]      # The message content (body). It can be a file with the content or a string with the raw text
 
 -xu [USERNAME]        # The username for SMTP authentication
 
 -xp [PASSWORD]        # The password for SMTP authentication
 
-```
-
-Optional arguments:
-```
 -cc [MAIL_ADDRESS ...]   # The cc email address(es)
 
 -bcc [MAIL_ADDRESS ...]  # The bcc email address(es)

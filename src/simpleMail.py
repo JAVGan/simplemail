@@ -32,7 +32,7 @@ import argparse
 import os, sys
 import smtplib
 import logging
-
+import configparser
 from os.path import basename
 from datetime import datetime
 from email.mime.application import MIMEApplication
@@ -77,10 +77,10 @@ def send_email(options):
         logging.debug("    - charset: %s" % options.charset)
         
         # Check if the message is a file
-        body = str(' '.join(options.body))
+        body = str(''.join(options.body))
         if os.path.isfile(body):
             f = open(body, 'r')
-            body = '\n'.join(f.readlines())
+            body = ''.join(f.readlines())
             f.close()
             
         msg.attach(MIMEText(body,options.content_type.replace('text/',''), _charset=options.charset))
@@ -153,6 +153,73 @@ def check_ports_mapping(port, method):
     return res
 
 
+# -- Function: load_configuration
+# It retrieves the configuration from external file and override the default options
+# while preserving the values passed as arguments
+#
+def load_configuration(options):
+    config = configparser.ConfigParser()
+    try:
+        config.read(options.config_file)
+     
+        # SMTP - Mandatory section
+        smtp_section = config["SMTP"]
+        options.smtp_server = smtp_section["Host"].strip('"') + ":" + smtp_section["Port"].strip('"') if not options.smtp_server else options.smtp_server
+        if "Username" in smtp_section:
+            options.smtp_user = smtp_section["Username"].strip('"') if not options.smtp_user else options.smtp_user
+        if "Password" in smtp_section:
+            options.smtp_password = smtp_section["Password"].strip('"') if not options.smtp_password else options.smtp_password
+        if "UseSSL" in smtp_section:
+            options.ssl = smtp_section["UseSSL"].strip('"') if not options.ssl else options.ssl
+        if "UseTLS" in smtp_section:
+            options.tls = smtp_section["UseTLS"].strip('"') if not options.tls else options.tls
+        
+        # MESSAGE - Optional section 
+        if "MESSAGE" in config.sections():
+            message_section = config["MESSAGE"]
+            options.body = message_section["Content"].strip('"') if not options.body else options.body
+            if "Subject" in message_section:
+                options.subject = message_section["Subject"].strip('"') if not options.subject else options.subject
+            if "ContentType" in message_section:
+                options.content_type = message_section["ContentType"].strip('"') if not options.content_type else options.content_type
+            if "Charset" in message_section:
+                options.charset = message_section["Charset"].strip('"') if not options.charset else options.charset
+                
+        # LOGGING - Optional section
+        if "LOGGING" in config.sections():
+            logging_section = config["LOGGING"]
+            options.log_level = logging_section["LogLevel"].strip('"') if not options.log_level else options.log_level
+            if "LogFile" in logging_section:
+                options.log_file = logging_section["LogFile"].strip('"') if not options.log_file else options.log_file
+            if "SmtpDebug" in logging_section:
+                options.smtp_debug = logging_section["SmtpDebug"].strip('"') if not options.smtp_debug else options.smtp_debug
+                
+    except Exception as e:
+        print("CRITICAL: Failed to load the configuration file \"%s\": %s" % (options.config_file, e))
+        sys.exit(1)
+    return options
+
+
+# -- Function set_defaults
+# It set defaut options for values not passed as arugments.
+#
+# Even tough it's possible use the "default" key on argparse we're not doing it here
+# because if we set a default before calling the function load_configuration it would
+# difficult the decision to preserve the original arguments
+def set_defaults(options):
+    options.subject = "(no subject)" if not options.subject else options.subject
+    options.smtp_server = "localhost:25" if not options.smtp_server else options.smtp_server
+    options.tls = "auto" if not options.tls else options.tls
+    options.ssl = "auto" if not options.ssl else options.ssl
+    options.content_type = "text/html" if not options.content_type else options.content_type
+    options.charset = "utf-8" if not options.charset else options.charset
+    options.log_level = "INFO" if not options.log_level else options.log_level
+    options.smtp_debug = "false" if not options.smtp_debug else options.smtp_debug
+    options.smtp_user = "" if not options.smtp_user else options.smtp_user
+    options.smtp_password = "" if not options.smtp_password else options.smtp_password
+    return options
+
+
 # ------------------------------------------- Main ------------------------------------------------
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Send an email using an SMTP server")
@@ -161,27 +228,36 @@ if __name__ == '__main__':
     required = parser.add_argument_group('required arguments')
     required.add_argument("-f", "--sender", dest='sender', metavar="MAIL_ADDRESS", help="The sender email address", required=True)
     required.add_argument("-t", "--to", dest='to', metavar="MAIL_ADDRESS", help="The recipient email address(es)",nargs='+', required=True)
-    required.add_argument("-m", "--message", dest='body', metavar="MESSAGE", help="The message body. It can also be the path of a file with the message body", nargs='*', required=True)
-    required.add_argument("-xu", "--smtp_user", dest='smtp_user', metavar="USERNAME", help="The username for SMTP authentication", required=True)
-    required.add_argument("-xp", "--smtp_password", dest='smtp_password', metavar="PASSWORD", help="The password for SMTP authentication", required=True)
     
     # Optional arguments
-    parser.add_argument("-cc", "--cc", dest='cc', metavar="MAIL_ADDRESS", help="The cc email address(es)", nargs='*', required=False)
-    parser.add_argument("-bcc", "--bcc", dest='bcc', metavar="MAIL_ADDRESS", help="The bcc email address(es)", nargs='*', required=False)
-    parser.add_argument("-u", "--subject", dest='subject', metavar="SUBJECT", help="The message subject. Default = \"(no subject)\"", default="(no subject)", required=False)
-    parser.add_argument("-s", "--server", dest='smtp_server', default='localhost:25', metavar="SERVER[:PORT]", help="The smtp server in the format \"host:port\". Default = localhost:25", required=False)
-    parser.add_argument("-a", "--attachments", dest='file', metavar="FILE", help="File attachment(s)", nargs='*', required=False)
-    parser.add_argument("--tls", dest='tls', metavar="<true|false|auto>", default="auto", help="Whether use TLS or not. Default = auto", required=False)
-    parser.add_argument("--ssl", dest='ssl', metavar="<true|false|auto>", default="auto", help="Whether use SSL or not. Default = auto", required=False)
-    parser.add_argument("--content-type", dest='content_type', metavar="TYPE", default='html', help="The message body type. Default = \"text/html\"", required=False)
-    parser.add_argument("--charset", dest='charset', metavar="CHARSET", default='utf-8', help="The message body character encoding. Default = \"utf-8\"", required=False)
-    parser.add_argument("--log-level", dest='log_level', metavar="DEBUG|INFO|WARNING|ERROR|CRITICAL", default='INFO', help='the log level. Defatult = INFO', required=False)
-    parser.add_argument("--log-file", dest='log_file', default=None, metavar="FILE", help='log into a file instead of using STDOUT.', required=False)
-    parser.add_argument("--smtp-debug", dest="smtp_debug", default="false", metavar="<true|false>", help="whether to enable debugging for SMTP communication. Default = false")
+    # We should not set the defaults here since it will mess the decision taking of "load_configuration" to preserve the arguments 
+    parser.add_argument("-c", "--config-file", dest='config_file', metavar="CONFIG_FILE", help="The configuration file in INI format")
+    parser.add_argument("-xu", "--smtp_user", dest='smtp_user', metavar="USERNAME", help="The username for SMTP authentication")
+    parser.add_argument("-xp", "--smtp_password", dest='smtp_password', metavar="PASSWORD", help="The password for SMTP authentication")
+    parser.add_argument("-cc", "--cc", dest='cc', metavar="MAIL_ADDRESS", help="The cc email address(es)", nargs='*')
+    parser.add_argument("-bcc", "--bcc", dest='bcc', metavar="MAIL_ADDRESS", help="The bcc email address(es)", nargs='*')
+    parser.add_argument("-u", "--subject", dest='subject', metavar="SUBJECT", help="The message subject. Default = \"(no subject)\"")
+    parser.add_argument("-s", "--server", dest='smtp_server', metavar="SERVER[:PORT]", help="The smtp server in the format \"host:port\". Default = localhost:25")
+    parser.add_argument("-m", "--message", dest='body', metavar="MESSAGE", help="The message body. It can also be the path of a file with the message body", nargs='*')
+    parser.add_argument("-a", "--attachments", dest='file', metavar="FILE", help="File attachment(s)", nargs='*')
+    parser.add_argument("--tls", dest='tls', metavar="<true|false|auto>", help="Whether use TLS or not. Default = auto")
+    parser.add_argument("--ssl", dest='ssl', metavar="<true|false|auto>", help="Whether use SSL or not. Default = auto")
+    parser.add_argument("--content-type", dest='content_type', metavar="TYPE", help="The message body type. Default = \"text/html\"")
+    parser.add_argument("--charset", dest='charset', metavar="CHARSET", help="The message body character encoding. Default = \"utf-8\"")
+    parser.add_argument("--log-level", dest='log_level', metavar="DEBUG|INFO|WARNING|ERROR|CRITICAL", help='the log level. Defatult = INFO')
+    parser.add_argument("--log-file", dest='log_file', metavar="FILE", help='log into a file instead of using STDOUT.')
+    parser.add_argument("--smtp-debug", dest="smtp_debug", metavar="<true|false>", help="whether to enable debugging for SMTP communication. Default = false")
     
     # Read the arguments
     options = parser.parse_args()
-
+    
+    # Load configuration from file if any
+    if options.config_file:
+        options = load_configuration(options)
+    
+    # Set default values after "load_configuration" to preserve the original arguments
+    options = set_defaults(options)
+    
     # Log initialization
     if options.log_level.lower().find("debug") != -1:
         log_level = logging.DEBUG
@@ -201,7 +277,7 @@ if __name__ == '__main__':
 
     # Message body check
     if (options.body is None or len(options.body) < 1) and options.file is None:
-        parser.error("must specify message body as argument or file")
+        parser.error("must specify message body or attachement to send in message")
 
     # Execution
     sys.exit(send_email(options))
