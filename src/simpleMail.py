@@ -75,7 +75,15 @@ def send_email(options):
         logging.debug("Processing the e-mail body:")
         logging.debug("    - content_type: %s" % options.content_type)
         logging.debug("    - charset: %s" % options.charset)
-        msg.attach(MIMEText(str(' '.join(options.body)),options.content_type.replace('text/',''), _charset=options.charset))        
+        
+        # Check if the message is a file
+        body = str(' '.join(options.body))
+        if os.path.isfile(body):
+            f = open(body, 'r')
+            body = '\n'.join(f.readlines())
+            f.close()
+            
+        msg.attach(MIMEText(body,options.content_type.replace('text/',''), _charset=options.charset))
         
         # Process attachements 
         for f in options.file or []:
@@ -153,7 +161,7 @@ if __name__ == '__main__':
     required = parser.add_argument_group('required arguments')
     required.add_argument("-f", "--sender", dest='sender', metavar="MAIL_ADDRESS", help="The sender email address", required=True)
     required.add_argument("-t", "--to", dest='to', metavar="MAIL_ADDRESS", help="The recipient email address(es)",nargs='+', required=True)
-    required.add_argument("-m", "--message", dest='body', metavar="MESSAGE", help="message body", nargs='*', required=True)
+    required.add_argument("-m", "--message", dest='body', metavar="MESSAGE", help="The message body. It can also be the path of a file with the message body", nargs='*', required=True)
     required.add_argument("-xu", "--smtp_user", dest='smtp_user', metavar="USERNAME", help="The username for SMTP authentication", required=True)
     required.add_argument("-xp", "--smtp_password", dest='smtp_password', metavar="PASSWORD", help="The password for SMTP authentication", required=True)
     

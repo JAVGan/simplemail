@@ -37,7 +37,7 @@ Where the minimal arguments are:
                     
 -t [MAIL_ADDRESSESS]  # The recipient email address(es)
 
--m [MESSAGE ...]      # The message content (body)
+-m [MESSAGE ...]      # The message content (body). It can be a file with the content or a string with the raw text
 
 -xu [USERNAME]        # The username for SMTP authentication
 
