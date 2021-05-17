@@ -149,7 +149,7 @@ def check_ports_mapping(port, method):
     try:
        res = next(p for p in DEFAULT_PORTS if p["port"] == port)[method]
     except:
-        DEBUG("Couldn't determine the SSL/TLS behavior for port \"%s\" - Not mapped" % smtp_port)
+       logging.error("Couldn't determine the SSL/TLS behavior for port \"%s\" - Not mapped" % port)
     return res
 
 
