@@ -34,7 +34,6 @@ import smtplib
 import logging
 import configparser
 from os.path import basename
-from datetime import datetime
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -220,8 +219,7 @@ def set_defaults(options):
     return options
 
 
-# ------------------------------------------- Main ------------------------------------------------
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description="Send an email using an SMTP server")
     
     # Required arguments
@@ -283,3 +281,6 @@ if __name__ == '__main__':
     sys.exit(send_email(options))
 
 
+# ------------------------------------------- Main ------------------------------------------------
+if __name__ == '__main__':
+    main()
