@@ -118,9 +118,7 @@ class TestSetDefaults:
 # ---------------------------------------------------------------------------
 class TestLoadConfiguration:
     def _write_ini(self, content):
-        f = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".ini", delete=False
-        )
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False)
         f.write(content)
         f.close()
         return f.name
@@ -166,10 +164,7 @@ class TestLoadConfiguration:
 
     def test_cli_args_override_config(self):
         path = self._write_ini(
-            "[SMTP]\n"
-            'Host = "smtp.test.com"\n'
-            'Port = "587"\n'
-            'Username = "config_user"\n'
+            '[SMTP]\nHost = "smtp.test.com"\nPort = "587"\nUsername = "config_user"\n'
         )
         try:
             opts = _make_options(
@@ -184,11 +179,7 @@ class TestLoadConfiguration:
             os.unlink(path)
 
     def test_smtp_only_section(self):
-        path = self._write_ini(
-            "[SMTP]\n"
-            'Host = "smtp.test.com"\n'
-            'Port = "25"\n'
-        )
+        path = self._write_ini('[SMTP]\nHost = "smtp.test.com"\nPort = "25"\n')
         try:
             opts = _make_options(config_file=path)
             opts = load_configuration(opts)
@@ -261,9 +252,7 @@ class TestSendEmail:
     def test_body_from_file(self, mock_smtp_cls):
         mock_server = MagicMock()
         mock_smtp_cls.return_value = mock_server
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".html"
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".html") as f:
             f.write("<h1>Hello</h1>")
             body_path = f.name
         try:
@@ -305,6 +294,7 @@ class TestMain:
         with patch("sys.argv", ["simplemail"]):
             with pytest.raises(SystemExit):
                 from simplemail.cli import main
+
                 main()
 
     def test_no_body_or_attachment_exits(self):
@@ -314,4 +304,5 @@ class TestMain:
         ):
             with pytest.raises(SystemExit):
                 from simplemail.cli import main
+
                 main()
