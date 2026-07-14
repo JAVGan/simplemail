@@ -21,6 +21,9 @@ classifiers = [
     "Topic :: Communications :: Email",
 ]
 
+[project.optional-dependencies]
+test = ["pytest"]
+
 [project.scripts]
 simplemail = "simplemail.cli:main"
 
